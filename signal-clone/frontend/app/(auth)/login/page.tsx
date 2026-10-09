@@ -13,7 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const setCurrentUser = useStore((state) => state.setCurrentUser);
 
-  const [phone, setPhone] = useState("+1-555-0101");
+  const [phone, setPhone] = useState("+15550101");
   const [otp, setOtp] = useState("123456");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
@@ -189,18 +189,18 @@ export default function LoginPage() {
             <button
               type="button"
               disabled={loading}
-              onClick={() => handleQuickDemo("+1-555-0101")}
+              onClick={() => handleQuickDemo("+15550101")}
               className="px-3 py-2 bg-surface-sidebar hover:bg-surface-hover border border-border-subtle rounded-xl text-xs font-medium text-text-primary text-center transition-colors"
             >
-              Alice (+1-555-0101)
+              Alice (+1 555-0101)
             </button>
             <button
               type="button"
               disabled={loading}
-              onClick={() => handleQuickDemo("+1-555-0102")}
+              onClick={() => handleQuickDemo("+15550102")}
               className="px-3 py-2 bg-surface-sidebar hover:bg-surface-hover border border-border-subtle rounded-xl text-xs font-medium text-text-primary text-center transition-colors"
             >
-              Bob (+1-555-0102)
+              Bob (+1 555-0102)
             </button>
           </div>
         </div>

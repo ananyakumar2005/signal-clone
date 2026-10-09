@@ -1,7 +1,8 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.user import User
@@ -37,8 +38,16 @@ async def add_contact(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Find target user
-    result = await db.execute(select(User).where(User.phone == body.phone))
+    clean = re.sub(r"\D", "", body.phone)
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.phone == body.phone,
+                User.phone == f"+{clean}",
+                User.phone == clean,
+            )
+        )
+    )
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="No user with that phone number")
