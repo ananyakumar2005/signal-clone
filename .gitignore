@@ -33,6 +33,7 @@ __pycache__/
 
 # Database & Runtime Uploads
 *.db
+*.db-*
 *.sqlite
 *.sqlite3
 uploads/
