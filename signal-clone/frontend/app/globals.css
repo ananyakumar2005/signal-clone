@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Resets ─────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background-color: #1b1b1b;
+  color: #ffffff;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbars (Signal-style slim dark scrollbars) ─────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #3d3d3d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────── */
+::selection {
+  background: #3a76f0;
+  color: #fff;
+}
+
+/* ─── Utility layers ─────────────────────────────────────────────────────── */
+@layer components {
+  .signal-bubble-sent {
+    @apply bg-signal-sent text-white rounded-[18px] rounded-br-[4px] px-3 py-2;
+  }
+  .signal-bubble-received {
+    @apply bg-signal-received text-white rounded-[18px] rounded-bl-[4px] px-3 py-2;
+  }
+  .signal-bubble-system {
+    @apply bg-transparent text-signal-secondary text-xs italic text-center py-1;
+  }
+  .signal-input {
+    @apply bg-signal-input text-signal-primary rounded-full px-4 py-2 outline-none
+           border border-transparent focus:border-signal-sent placeholder:text-signal-tertiary
+           transition-colors;
+  }
+  .signal-btn-primary {
+    @apply bg-signal-sent text-white rounded-full px-6 py-3 font-semibold
+           hover:bg-blue-600 active:scale-95 transition-all disabled:opacity-50;
+  }
+  .signal-btn-ghost {
+    @apply text-signal-secondary hover:text-white hover:bg-signal-hover
+           rounded-full p-2 transition-colors;
+  }
+  .conv-item {
+    @apply flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-signal-hover
+           transition-colors border-b border-signal-border/30;
+  }
+  .conv-item.active {
+    @apply bg-signal-hover;
+  }
+}

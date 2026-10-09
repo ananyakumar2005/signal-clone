@@ -1,0 +1,564 @@
+================================================================
+SIGNAL CLONE — FULLSTACK SDE ASSIGNMENT
+Implementation Plan
+================================================================
+Estimated Effort : ~24 hours
+Stack            : Next.js (TypeScript) + FastAPI (Python) + SQLite + WebSockets
+================================================================
+
+────────────────────────────────────────────────────────────────
+SECTION 1 — PROJECT STRUCTURE
+────────────────────────────────────────────────────────────────
+
+signal-clone/
+├── frontend/                     # Next.js 14+ (App Router, TypeScript)
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── register/page.tsx
+│   │   │   └── login/page.tsx
+│   │   ├── (app)/
+│   │   │   ├── layout.tsx        # Main app shell (sidebar + chat pane)
+│   │   │   ├── page.tsx          # Redirect → /chats
+│   │   │   ├── chats/
+│   │   │   │   ├── page.tsx      # Conversation list (empty state)
+│   │   │   │   └── [id]/page.tsx # Active chat view
+│   │   │   ├── groups/
+│   │   │   │   ├── new/page.tsx  # Create group
+│   │   │   │   └── [id]/page.tsx # Group chat view
+│   │   │   └── settings/page.tsx # Settings placeholders
+│   │   ├── layout.tsx            # Root layout (fonts, theme provider)
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── auth/
+│   │   │   ├── PhoneStep.tsx
+│   │   │   ├── OtpStep.tsx
+│   │   │   └── ProfileStep.tsx
+│   │   ├── sidebar/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── ConversationList.tsx
+│   │   │   ├── ConversationItem.tsx
+│   │   │   ├── SearchBar.tsx
+│   │   │   └── NewChatButton.tsx
+│   │   ├── chat/
+│   │   │   ├── ChatHeader.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   ├── MessageBubble.tsx
+│   │   │   ├── MessageInput.tsx
+│   │   │   ├── TypingIndicator.tsx
+│   │   │   ├── ReadReceipt.tsx
+│   │   │   └── ReplyPreview.tsx   # Bonus
+│   │   ├── modals/
+│   │   │   ├── AddContactModal.tsx
+│   │   │   ├── NewGroupModal.tsx
+│   │   │   ├── GroupInfoModal.tsx
+│   │   │   └── ContactInfoModal.tsx
+│   │   └── ui/                   # Shared primitives
+│   │       ├── Avatar.tsx
+│   │       ├── Badge.tsx
+│   │       ├── Toast.tsx
+│   │       └── Spinner.tsx
+│   ├── hooks/
+│   │   ├── useWebSocket.ts
+│   │   ├── useMessages.ts
+│   │   ├── useConversations.ts
+│   │   └── useTyping.ts
+│   ├── lib/
+│   │   ├── api.ts                # Axios/fetch wrapper with base URL
+│   │   ├── auth.ts               # Token helpers, session persistence
+│   │   └── utils.ts              # Date formatting, string helpers
+│   ├── store/
+│   │   └── useStore.ts           # Zustand global state
+│   ├── types/
+│   │   └── index.ts              # Shared TS interfaces
+│   ├── public/
+│   │   └── signal-logo.svg
+│   ├── next.config.ts
+│   ├── tailwind.config.ts
+│   └── package.json
+│
+├── backend/                      # FastAPI (Python 3.11+)
+│   ├── app/
+│   │   ├── main.py               # FastAPI app, CORS, lifespan
+│   │   ├── database.py           # SQLAlchemy engine + session
+│   │   ├── models/
+│   │   │   ├── user.py
+│   │   │   ├── contact.py
+│   │   │   ├── conversation.py
+│   │   │   ├── message.py
+│   │   │   └── group.py
+│   │   ├── schemas/              # Pydantic request/response models
+│   │   │   ├── auth.py
+│   │   │   ├── user.py
+│   │   │   ├── message.py
+│   │   │   └── group.py
+│   │   ├── routers/
+│   │   │   ├── auth.py
+│   │   │   ├── users.py
+│   │   │   ├── contacts.py
+│   │   │   ├── conversations.py
+│   │   │   ├── messages.py
+│   │   │   ├── groups.py
+│   │   │   └── ws.py             # WebSocket endpoint
+│   │   ├── services/
+│   │   │   ├── auth_service.py
+│   │   │   ├── message_service.py
+│   │   │   └── ws_manager.py     # Connection manager (rooms)
+│   │   ├── dependencies.py       # get_db, get_current_user
+│   │   ├── config.py             # Settings (SECRET_KEY, DB_URL)
+│   │   └── seed.py               # Database seeder
+│   ├── requirements.txt
+│   └── .env
+│
+├── README.md
+└── docker-compose.yml
+
+
+────────────────────────────────────────────────────────────────
+SECTION 2 — DATABASE SCHEMA (SQLite via SQLAlchemy ORM)
+────────────────────────────────────────────────────────────────
+
+TABLE: users
+  id            INTEGER  PK AUTOINCREMENT
+  phone         TEXT     UNIQUE NOT NULL
+  username      TEXT     UNIQUE
+  display_name  TEXT     NOT NULL
+  avatar_url    TEXT
+  about         TEXT     DEFAULT 'Hey there! I am using Signal.'
+  is_online     BOOLEAN  DEFAULT FALSE
+  last_seen     DATETIME
+  created_at    DATETIME DEFAULT NOW
+
+TABLE: contacts
+  id            INTEGER  PK AUTOINCREMENT
+  owner_id      INTEGER  FK → users.id
+  contact_id    INTEGER  FK → users.id
+  nickname      TEXT
+  added_at      DATETIME DEFAULT NOW
+  UNIQUE(owner_id, contact_id)
+
+TABLE: conversations
+  id            INTEGER  PK AUTOINCREMENT
+  type          TEXT     CHECK(type IN ('direct','group')) DEFAULT 'direct'
+  created_at    DATETIME DEFAULT NOW
+  group_name    TEXT
+  group_avatar  TEXT
+  created_by    INTEGER  FK → users.id
+
+TABLE: conversation_members
+  id               INTEGER  PK AUTOINCREMENT
+  conversation_id  INTEGER  FK → conversations.id
+  user_id          INTEGER  FK → users.id
+  is_admin         BOOLEAN  DEFAULT FALSE
+  joined_at        DATETIME DEFAULT NOW
+  UNIQUE(conversation_id, user_id)
+
+TABLE: messages
+  id               INTEGER  PK AUTOINCREMENT
+  conversation_id  INTEGER  FK → conversations.id
+  sender_id        INTEGER  FK → users.id
+  content          TEXT
+  message_type     TEXT     DEFAULT 'text'         -- text | image | file | system
+  status           TEXT     DEFAULT 'sent'         -- sending | sent | delivered | read
+  reply_to_id      INTEGER  FK → messages.id       -- Bonus: quoted reply
+  is_deleted       BOOLEAN  DEFAULT FALSE
+  disappear_at     DATETIME                        -- Bonus: disappearing msgs
+  created_at       DATETIME DEFAULT NOW
+
+TABLE: message_receipts
+  id          INTEGER  PK AUTOINCREMENT
+  message_id  INTEGER  FK → messages.id
+  user_id     INTEGER  FK → users.id
+  status      TEXT     CHECK(status IN ('delivered','read'))
+  updated_at  DATETIME DEFAULT NOW
+  UNIQUE(message_id, user_id)
+
+TABLE: otp_sessions
+  id          INTEGER  PK AUTOINCREMENT
+  phone       TEXT     NOT NULL
+  otp         TEXT     NOT NULL DEFAULT '123456'   -- fixed mock OTP
+  expires_at  DATETIME
+  verified    BOOLEAN  DEFAULT FALSE
+
+Key relationships:
+  • A conversation has many members (conversation_members).
+  • A conversation has many messages.
+  • Each message has many receipts (one per recipient).
+  • A user has many contacts (self-referential via contacts table).
+
+
+────────────────────────────────────────────────────────────────
+SECTION 3 — TECH DECISIONS & RATIONALE
+────────────────────────────────────────────────────────────────
+
+Frontend
+  • Next.js 14 App Router — file-based routing, server components where
+    useful, client components for interactive chat UI.
+  • TypeScript — enforces shape of API responses via shared types.
+  • Tailwind CSS — rapid styling with custom design tokens matching Signal.
+  • Zustand — lightweight global store for auth state, active conversation,
+    online presence map, and unread counts.
+  • Native WebSocket in a hook — real-time message delivery.
+  • React Query (TanStack) — server state, caching, automatic refetching.
+
+Backend
+  • FastAPI — async-first, WebSocket support, auto OpenAPI docs.
+  • SQLAlchemy (async) + aiosqlite — non-blocking SQLite I/O.
+  • python-jose + passlib[bcrypt] — JWT auth (access + refresh tokens).
+  • Pydantic v2 — request validation, response serialization.
+
+Real-time (WebSocket strategy)
+  • Single WebSocket endpoint: /ws/{user_id}?token=<jwt>
+  • ConnectionManager class maintains a dict: user_id → list[WebSocket]
+  • On new message: broadcast to all members of the conversation.
+  • Event types (JSON):
+      message.new | message.status | typing.start | typing.stop | presence.update
+  • Rooms: conversation_id acts as a logical room.
+
+Auth Flow (mocked)
+  1. POST /auth/send-otp  { phone } → stores OTP "123456" in DB
+  2. POST /auth/verify-otp { phone, otp } → verifies, returns JWT + user_id
+  3. POST /auth/register  { phone, display_name, avatar } → creates user
+  4. POST /auth/login     { phone, otp } → returns JWT
+  5. GET  /auth/me        → returns current user profile
+
+
+────────────────────────────────────────────────────────────────
+SECTION 4 — API DESIGN (REST + WebSocket)
+────────────────────────────────────────────────────────────────
+
+AUTH
+  POST   /api/auth/send-otp
+  POST   /api/auth/verify-otp
+  POST   /api/auth/register
+  POST   /api/auth/login
+  GET    /api/auth/me
+  POST   /api/auth/logout
+
+USERS
+  GET    /api/users/search?q=               -- search by phone/name
+  GET    /api/users/{id}
+  PATCH  /api/users/me                      -- update profile
+
+CONTACTS
+  GET    /api/contacts                      -- list my contacts
+  POST   /api/contacts                      -- add contact { phone }
+  DELETE /api/contacts/{id}
+
+CONVERSATIONS
+  GET    /api/conversations                 -- list all (sorted by last msg)
+  GET    /api/conversations/{id}
+  POST   /api/conversations/direct          -- start/get DM { contact_id }
+  PATCH  /api/conversations/{id}            -- update group name/avatar
+
+MESSAGES
+  GET    /api/conversations/{id}/messages?cursor=&limit=50
+  POST   /api/conversations/{id}/messages   -- send message
+  DELETE /api/messages/{id}                -- soft delete
+  PATCH  /api/messages/{id}/status         -- mark delivered/read
+
+GROUPS
+  POST   /api/groups                        -- create group
+  GET    /api/groups/{id}/members
+  POST   /api/groups/{id}/members           -- add member
+  DELETE /api/groups/{id}/members/{user_id} -- remove member
+  PATCH  /api/groups/{id}/members/{user_id} -- toggle admin
+
+WEBSOCKET
+  WS     /ws/{user_id}?token=<jwt>
+
+  Client → Server events:
+    { type: "typing.start", conversation_id }
+    { type: "typing.stop",  conversation_id }
+    { type: "message.read", message_ids: [...] }
+
+  Server → Client events:
+    { type: "message.new",    message: MessageObject }
+    { type: "message.status", message_id, status }
+    { type: "typing.start",   conversation_id, user_id }
+    { type: "typing.stop",    conversation_id, user_id }
+    { type: "presence.update",user_id, is_online, last_seen }
+
+
+────────────────────────────────────────────────────────────────
+SECTION 5 — UI / UX IMPLEMENTATION (Signal-Faithful)
+────────────────────────────────────────────────────────────────
+
+Color Palette (Signal Dark Theme)
+  Background       : #1B1B1B (main), #2A2A2A (sidebar)
+  Surface          : #3A3A3A (bubbles)
+  Accent/Brand     : #3A76F0 (sent bubble)
+  Sent bubble      : #3A76F0 (right-aligned)
+  Received bubble  : #2C2C2E (left-aligned)
+  Text primary     : #FFFFFF
+  Text secondary   : #8E8E93
+  Online indicator : #4CD964 (green dot)
+  Unread badge     : #3A76F0 (blue pill)
+
+Typography
+  Font: "Inter" (Google Fonts)
+
+Layout — Two-Pane (Desktop)
+  ┌─────────────────┬──────────────────────────────────────┐
+  │  SIDEBAR (360px)│  CHAT PANE (flex-1)                 │
+  │  ─────────────  │  ─────────────────────────────────  │
+  │  [Logo] [Icons] │  [ChatHeader]                        │
+  │  [SearchBar]    │  [MessageList]  ← scrollable         │
+  │  [ConvList]     │  [TypingIndicator]                   │
+  │                 │  [MessageInput]                      │
+  └─────────────────┴──────────────────────────────────────┘
+
+Sidebar Icons (top-right): Compose (pencil), Filter, Settings, Profile
+
+Message Bubbles
+  • Sent   → right-aligned, blue pill, timestamp + read-receipt icon
+  • Received → left-aligned, dark pill, timestamp
+  • System → centered, italic (e.g. "John joined the group")
+  • Timestamp: shows time for same-day, date label for older messages
+
+Read Receipts (checkmarks)
+  Check (grey single)  = sent
+  Check Check (grey)   = delivered
+  Check Check (blue)   = read
+
+Onboarding Flow (3 screens)
+  Screen 1: Phone entry + country code selector
+  Screen 2: OTP entry (6-digit, mock = 123456) with resend timer
+  Screen 3: Display name + avatar upload
+
+Settings Page (placeholders)
+  • Account (phone, username, change number)
+  • Privacy (read receipts, last seen, groups)
+  • Notifications (sounds, vibration)
+  • Chats (wallpaper, chat backup)
+  • Linked Devices → "Coming Soon"
+  • Stories       → "Coming Soon"
+  • Voice & Video → "Coming Soon"
+
+
+────────────────────────────────────────────────────────────────
+SECTION 6 — FEATURE IMPLEMENTATION DETAILS
+────────────────────────────────────────────────────────────────
+
+6.1 Authentication & Session
+  • JWT stored in localStorage + httpOnly cookie (set by backend).
+  • Next.js middleware redirects unauthenticated users to /login.
+  • On app load: GET /auth/me → populate Zustand auth store.
+
+6.2 Conversation List
+  • Fetch via GET /api/conversations.
+  • Sorted by last message created_at DESC (computed on backend).
+  • Each item: avatar, name, last message preview (40 chars), timestamp,
+    unread count badge.
+  • Real-time: WS message.new event triggers optimistic list update.
+
+6.3 One-on-One Messaging
+  • Starting a DM: POST /api/conversations/direct → redirect to /chats/{id}
+  • Message send flow:
+      1. User hits Enter / clicks Send.
+      2. Optimistic update: append message with status "sending".
+      3. POST /api/conversations/{id}/messages.
+      4. Server inserts, broadcasts via WS to all members.
+      5. Status updated: sent → delivered (WS) → read (WS on open).
+  • Infinite scroll: cursor-based pagination, IntersectionObserver on top.
+  • Typing indicator: debounce 500ms, typing.start sent, cleared after 3s idle.
+
+6.4 Group Messaging
+  • POST /api/groups creates conversation (type=group) + creator as admin.
+  • Group header shows member count, clickable → GroupInfoModal.
+  • GroupInfoModal: member list with role badges, admin controls.
+  • System messages emitted for join/leave events.
+
+6.5 Real-time Presence
+  • On WS connect: server marks is_online=true, broadcasts presence.update.
+  • On WS disconnect: marks is_online=false, updates last_seen.
+  • Frontend shows green dot on avatar if is_online.
+
+6.6 Notifications / Toasts
+  • react-hot-toast for in-app notifications.
+  • New message in background tab → browser Notification API.
+
+6.7 Bonus Features (if time permits)
+  • Dark mode: next-themes (default dark).
+  • Message reactions: emoji picker, stored in reactions table.
+  • Reply-to: reply_to_id on message, renders quoted bubble above.
+  • Disappearing messages: disappear_at; client/server cleans up after interval.
+  • Attachments: multipart upload → URL stored in message.content.
+  • Keyboard shortcuts: Ctrl+K (search), Esc (close modal), Enter (send).
+  • Responsive: below 768px → sidebar slides over chat pane (mobile UX).
+
+
+────────────────────────────────────────────────────────────────
+SECTION 7 — DATABASE SEEDING
+────────────────────────────────────────────────────────────────
+
+seed.py creates:
+  • 6 users: Alice (+1-555-0101), Bob, Carol, Dave, Eve, Frank
+    — all with display names and placeholder avatars
+  • Alice is the primary demo login (OTP: 123456)
+  • Contact relationships: Alice ↔ Bob, Alice ↔ Carol, Bob ↔ Dave, etc.
+  • 3 direct conversations with 20–30 seeded messages each
+    (timestamps spread over the past 7 days, varied statuses)
+  • 2 group conversations:
+      "Dev Team"       → Alice, Bob, Carol, Dave (Alice is admin)
+      "Weekend Plans"  → Alice, Carol, Eve, Frank (Alice is admin)
+  • Run: python -m app.seed
+
+
+────────────────────────────────────────────────────────────────
+SECTION 8 — IMPLEMENTATION PHASES & TIMELINE (~24 hrs)
+────────────────────────────────────────────────────────────────
+
+Phase 1 — Setup & Auth (3 hrs)
+  [x] Init Next.js project (TypeScript, App Router, Tailwind)
+  [x] Init FastAPI project, install dependencies
+  [x] SQLAlchemy models + create_all() on startup
+  [x] Auth endpoints (send-otp, verify-otp, register, login, me)
+  [x] JWT middleware in FastAPI
+  [x] Frontend auth pages (phone → OTP → profile, 3-step)
+  [x] Session persistence (localStorage + Zustand)
+  [x] Next.js client redirect for unauthenticated routes
+
+Phase 2 — Core Backend APIs (4 hrs)
+  [x] Contacts CRUD
+  [x] Conversations endpoints (list, get, start-direct)
+  [x] Messages endpoints (paginated GET, POST)
+  [x] Groups CRUD + member management (add/remove/promote)
+  [x] Database seeder (seed.py - Alice, Bob, Carol, Dave, Eve, Frank)
+
+Phase 3 — WebSocket Server (2 hrs)
+  [x] ConnectionManager (connect, disconnect, broadcast to room)
+  [x] Event routing: message.new, typing.*, message.status, presence.*
+  [x] JWT validation on WS handshake
+
+Phase 4 — Frontend Layout & Sidebar (4 hrs)
+  [x] App shell layout (sidebar + chat pane, two-pane grid)
+  [x] Sidebar with conversation list
+  [x] ConversationItem (avatar, name, last msg, timestamp, unread badge)
+  [x] SearchBar (client-side filter + API search for contacts)
+  [x] AddContact modal
+  [x] NewGroup modal (multi-step: name → add members → create)
+
+Phase 5 — Chat Pane (5 hrs)
+  [x] ChatHeader (name, avatar, online status, info button)
+  [x] MessageList (infinite scroll with date separators, security notice)
+  [x] MessageBubble (sent/received, timestamps, read receipts/checkmarks)
+  [x] MessageInput (textarea auto-resize, emoji picker, send button)
+  [x] TypingIndicator (animated dots)
+  [x] useWebSocket hook (connect, reconnect with backoff, event dispatch)
+  [x] Optimistic message updates via Zustand
+
+Phase 6 — Groups UI (2 hrs)
+  [x] Group chat view (reuse DM chat pane with group context)
+  [x] GroupInfoModal (member list, role badges, add/remove admin controls)
+  [x] System message rendering (centered italic)
+
+Phase 7 — Settings & Polish (2 hrs)
+  [x] Settings modal (profile edit, privacy, notifications, linked devices)
+  [x] Toast notifications (react-hot-toast)
+  [x] Empty states (no conversation selected, no contacts found)
+  [x] Loading skeletons for conversations and messages
+
+Phase 8 — Bonus & Final Polish (2 hrs)
+  [x] Reply-to quoted messages
+  [x] Simulated voice/video call modal
+  [x] Safety number encryption verification preview
+  [x] README.md & Docker compose deployment files (Dockerfiles + docker-compose.yml)
+
+Total: ~24 hrs
+
+
+────────────────────────────────────────────────────────────────
+SECTION 9 — DEPLOYMENT PLAN
+────────────────────────────────────────────────────────────────
+
+Backend (FastAPI) → Render
+  • Deploy as a Web Service (free tier).
+  • Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+  • SQLite file persisted via Render Disk (or Railway for easier persistence).
+  • Env vars: SECRET_KEY, CORS_ORIGINS, DATABASE_URL.
+
+Frontend (Next.js) → Vercel
+  • Deploy via GitHub integration (auto-detects Next.js).
+  • Env vars: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_WS_URL (Render backend URL).
+
+CORS
+  • FastAPI CORSMiddleware allows Vercel domain + localhost:3000.
+
+WebSocket
+  • Render supports WebSocket on standard HTTP ports.
+  • Use wss:// in production (Render provides TLS automatically).
+
+
+────────────────────────────────────────────────────────────────
+SECTION 10 — README OUTLINE
+────────────────────────────────────────────────────────────────
+
+# Signal Clone
+
+## Demo
+  - Live: <vercel-url>
+  - Backend API: <render-url>/docs
+
+## Tech Stack
+  Frontend : Next.js 14, TypeScript, Zustand, React Query, Tailwind CSS
+  Backend  : FastAPI, SQLAlchemy (async), aiosqlite, python-jose
+  Database : SQLite
+  Real-time: WebSockets (FastAPI native)
+  Auth     : JWT HS256 + mocked OTP (always "123456")
+
+## Quick Start
+  ### Backend
+    cd backend
+    python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    python -m app.seed
+    uvicorn app.main:app --reload --port 8000
+
+  ### Frontend
+    cd frontend
+    npm install
+    cp .env.example .env.local   # set NEXT_PUBLIC_API_URL + NEXT_PUBLIC_WS_URL
+    npm run dev
+
+## Demo Login
+  Phone: +1 555-0101
+  OTP  : 123456
+
+## Architecture Overview
+  Two-pane SPA (Next.js) communicates with FastAPI over REST for data
+  and WebSocket for real-time events. SQLite stores all state.
+  ConnectionManager in ws_manager.py maintains per-user WS connections
+  and broadcasts events to conversation rooms.
+
+## Database Schema
+  [tables as in Section 2 above]
+
+## API Overview
+  [endpoints as in Section 4 above]
+  Full interactive docs: /docs (Swagger UI)
+
+## Assumptions
+  - OTP is always "123456" (no real SMS gateway).
+  - E2E encryption is mocked — messages stored as plaintext.
+  - Avatars stored as URLs; upload uses local disk or base64 in dev.
+  - SQLite WAL mode enabled for concurrent WebSocket writes.
+  - No migrations tool; tables created on startup via create_all().
+
+
+────────────────────────────────────────────────────────────────
+SECTION 11 — KEY RISKS & MITIGATIONS
+────────────────────────────────────────────────────────────────
+
+Risk                               Mitigation
+────────────────────────────────── ──────────────────────────────────
+SQLite concurrent WS writes        Enable WAL mode: PRAGMA journal_mode=WAL
+WS reconnection on network blip    Exponential backoff in useWebSocket hook
+Infinite scroll complexity         IntersectionObserver + cursor pagination
+Signal UI pixel-perfect match      Study Signal Web carefully before styling
+Next.js SSR + WebSocket client     Keep all WS logic in 'use client' components
+CORS mismatch in production        Pre-configure allowed origins before deploy
+SQLite not persisted on Render     Use Render Disk or migrate to Railway
+
+================================================================
+END OF IMPLEMENTATION PLAN
+================================================================
