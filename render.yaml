@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: signal-backend
+    runtime: python
+    rootDir: signal-clone/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./signal.db
+      - key: CORS_ORIGINS
+        value: "*"
