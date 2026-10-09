@@ -9,25 +9,43 @@ module.exports = {
     extend: {
       colors: {
         signal: {
-          // Main backgrounds
-          bg: "#1B1B1B",
-          sidebar: "#2A2A2A",
-          surface: "#3A3A3A",
-          hover: "#333333",
-          border: "#3D3D3D",
-          // Bubbles
-          sent: "#3A76F0",
-          received: "#2C2C2E",
-          // Text
+          bg: "#121416",
+          sidebar: "#1b1e22",
+          surface: "#202327",
+          hover: "#262a2f",
+          border: "#2c3136",
+          sent: "#2c6bed",
+          received: "#262a2f",
           primary: "#FFFFFF",
           secondary: "#8E8E93",
           tertiary: "#636366",
-          // Accents
           online: "#4CD964",
-          unread: "#3A76F0",
+          unread: "#2c6bed",
           danger: "#FF453A",
-          // Input
-          input: "#1C1C1E",
+          input: "#202327",
+          blue: {
+            DEFAULT: "#2c6bed",
+            hover: "#1d55d8",
+            light: "#60a5fa",
+          },
+        },
+        surface: {
+          chat: "#121416",
+          card: "#1b1e22",
+          sidebar: "#1b1e22",
+          header: "#17191c",
+          hover: "#262a2f",
+          active: "#2c3137",
+          input: "#202327",
+        },
+        border: {
+          subtle: "#2c3136",
+          strong: "#3d444d",
+        },
+        text: {
+          primary: "#ffffff",
+          secondary: "#9aa0a6",
+          muted: "#68707a",
         },
       },
       fontFamily: {

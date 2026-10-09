@@ -116,7 +116,7 @@ export default function LoginPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+1 555-0101"
-                className="w-full px-4 py-3 bg-surface-input rounded-xl text-base border border-border-subtle focus:border-signal-blue focus:outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-input text-white placeholder-text-muted rounded-xl text-base border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none transition-all"
               />
               <span className="block text-[11px] text-text-muted mt-1.5">
                 Include country code. Real phone verification is simulated.
@@ -151,7 +151,7 @@ export default function LoginPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full px-4 py-3 bg-surface-input rounded-xl text-center tracking-[0.5em] text-xl font-mono border border-border-subtle focus:border-signal-blue focus:outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-input text-white placeholder-text-muted rounded-xl text-center tracking-[0.5em] text-xl font-mono border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none transition-all"
               />
               <div className="flex items-center justify-between text-[11px] text-text-muted mt-2">
                 <span>Mock fixed OTP is 123456</span>

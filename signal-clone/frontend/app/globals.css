@@ -35,10 +35,29 @@ body {
   background-color: #555;
 }
 
-/* ─── Selection ──────────────────────────────────────────────────────────── */
 ::selection {
   background: #3a76f0;
   color: #fff;
+}
+
+/* ─── Form Controls & Browser Autofill ───────────────────────────────────── */
+input, textarea, select {
+  color: #ffffff;
+  background-color: #202327;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #68707a;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #202327 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* ─── Utility layers ─────────────────────────────────────────────────────── */

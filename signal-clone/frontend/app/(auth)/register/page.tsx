@@ -100,7 +100,7 @@ export default function RegisterPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+1 555-0199"
-                className="w-full px-4 py-3 bg-surface-input rounded-xl text-base border border-border-subtle focus:border-signal-blue focus:outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-input text-white placeholder-text-muted rounded-xl text-base border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none transition-all"
               />
             </div>
 
@@ -131,7 +131,7 @@ export default function RegisterPage() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your Name"
-                className="w-full px-4 py-2.5 bg-surface-input rounded-xl text-sm border border-border-subtle focus:border-signal-blue focus:outline-none"
+                className="w-full px-4 py-2.5 bg-surface-input text-white placeholder-text-muted rounded-xl text-sm border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none"
               />
             </div>
 
@@ -145,7 +145,7 @@ export default function RegisterPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full px-4 py-2.5 bg-surface-input rounded-xl text-sm font-mono tracking-widest border border-border-subtle focus:border-signal-blue focus:outline-none"
+                className="w-full px-4 py-2.5 bg-surface-input text-white placeholder-text-muted rounded-xl text-sm font-mono tracking-widest border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none"
               />
               <span className="block text-[11px] text-text-muted mt-1">Mock OTP is 123456</span>
             </div>
@@ -159,7 +159,7 @@ export default function RegisterPage() {
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
                 placeholder="About status"
-                className="w-full px-4 py-2.5 bg-surface-input rounded-xl text-sm border border-border-subtle focus:border-signal-blue focus:outline-none"
+                className="w-full px-4 py-2.5 bg-surface-input text-white placeholder-text-muted rounded-xl text-sm border border-border-subtle focus:border-signal-blue focus:ring-1 focus:ring-signal-blue focus:outline-none"
               />
             </div>
 
